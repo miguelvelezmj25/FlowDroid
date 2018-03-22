@@ -256,7 +256,7 @@ public class DefaultSourceSinkManager implements ISourceSinkManager {
 	 * @return The method that was discovered as a sink, or null if no sink
 	 *         could be found
 	 */
-	private SootMethodAndClass isSinkMethod(InfoflowManager manager, Stmt sCallSite) {
+	protected SootMethodAndClass isSinkMethod(InfoflowManager manager, Stmt sCallSite) {
 		// Is the method directly in the sink set?
 		SootMethod callee = sCallSite.getInvokeExpr().getMethod();
 		if (this.sinks.contains(callee))

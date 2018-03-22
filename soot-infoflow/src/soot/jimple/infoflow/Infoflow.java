@@ -115,6 +115,8 @@ public class Infoflow extends AbstractInfoflow {
 
 	protected SootMethod dummyMainMethod = null;
 
+	private IInfoflowCFG iCfg;
+
 	/**
 	 * Creates a new instance of the InfoFlow class for analyzing plain Java
 	 * code without any references to APKs or the Android SDK.
@@ -292,7 +294,10 @@ public class Infoflow extends AbstractInfoflow {
 				pathBuilderFactory = new DefaultPathBuilderFactory(config.getPathConfiguration());
 
 			logger.info("Starting Taint Analysis");
-			IInfoflowCFG iCfg = icfgFactory.buildBiDirICFG(config.getCallgraphAlgorithm(),
+//			IInfoflowCFG iCfg = icfgFactory.buildBiDirICFG(config.getCallgraphAlgorithm(),
+//					config.getEnableExceptionTracking());
+
+			this.iCfg = icfgFactory.buildBiDirICFG(config.getCallgraphAlgorithm(),
 					config.getEnableExceptionTracking());
 
 			// Check whether we need to run with one source at a time
@@ -1177,4 +1182,7 @@ public class Infoflow extends AbstractInfoflow {
 		}
 	}
 
+	public IInfoflowCFG getiCfg() {
+		return iCfg;
+	}
 }
