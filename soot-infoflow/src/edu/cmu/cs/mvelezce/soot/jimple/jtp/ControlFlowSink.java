@@ -27,7 +27,20 @@ public class ControlFlowSink extends BodyTransformer {
     protected void internalTransform(Body b, String phaseName, Map<String, String> options) {
         Chain<Unit> units = b.getUnits();
         Chain<Local> locals = b.getLocals();
-        Map<Unit, List<Value>> unitsToValues = new HashMap<>();
+        Map<Unit, List<Value>> decisionsToLocals = this.getDecisionsToLocals(units, locals);
+
+        if(decisionsToLocals.isEmpty()) {
+            return;
+        }
+
+        SootClass sootClass = Scene.v().loadClassAndSupport("edu.cmu.cs.mvelezce.analysis.option.Sink");
+        SootMethod sootMethod = sootClass.getMethod("void sink(java.lang.Object)");
+
+        this.addSinks(decisionsToLocals, units, sootMethod);
+    }
+
+    private Map<Unit, List<Value>> getDecisionsToLocals(Chain<Unit> units, Chain<Local> locals) {
+        Map<Unit, List<Value>> decisionsToLocals = new HashMap<>();
 
         for(Unit unit : units) {
             if(unit instanceof IfStmt) {
@@ -40,21 +53,11 @@ public class ControlFlowSink extends BodyTransformer {
                     Value op2 = condExpr.getOp2();
 
                     if(locals.contains(op1)) {
-                        if(!unitsToValues.containsKey(unit)) {
-                            List<Value> values = new ArrayList<>();
-                            unitsToValues.put(unit, values);
-                        }
-
-                        unitsToValues.get(unit).add(op1);
+                       this.addLocalToDecision(decisionsToLocals, unit, op1);
                     }
 
                     if(locals.contains(op2)) {
-                        if(!unitsToValues.containsKey(unit)) {
-                            List<Value> values = new ArrayList<>();
-                            unitsToValues.put(unit, values);
-                        }
-
-                        unitsToValues.get(unit).add(op2);
+                        this.addLocalToDecision(decisionsToLocals, unit, op2);
                     }
                 }
                 else {
@@ -65,23 +68,30 @@ public class ControlFlowSink extends BodyTransformer {
                 SwitchStmt switchStmt = (SwitchStmt) unit;
                 Value cond = switchStmt.getKey();
 
-                if(!unitsToValues.containsKey(unit)) {
-                    List<Value> values = new ArrayList<>();
-                    unitsToValues.put(unit, values);
-                }
-
-                unitsToValues.get(unit).add(cond);
+                throw new UnsupportedOperationException("Check if we need to check if the condition is a local");
+//                if(!decisionsToLocals.containsKey(unit)) {
+//                    List<Value> values = new ArrayList<>();
+//                    decisionsToLocals.put(unit, values);
+//                }
+//
+//                decisionsToLocals.get(unit).add(cond);
             }
         }
 
-        if(unitsToValues.isEmpty()) {
-            return;
+        return decisionsToLocals;
+    }
+
+    private void addLocalToDecision(Map<Unit, List<Value>> decisionsToLocals, Unit unit, Value op) {
+        if(!decisionsToLocals.containsKey(unit)) {
+            List<Value> values = new ArrayList<>();
+            decisionsToLocals.put(unit, values);
         }
 
-        SootClass sootClass = Scene.v().loadClassAndSupport("edu.cmu.cs.mvelezce.analysis.option.Sink");
-        SootMethod sootMethod = sootClass.getMethod("void sink(java.lang.Object)");
+        decisionsToLocals.get(unit).add(op);
+    }
 
-        for(Map.Entry<Unit, List<Value>> unitToValues : unitsToValues.entrySet()) {
+    private void addSinks(Map<Unit, List<Value>> decisionsToLocals, Chain<Unit> units, SootMethod sootMethod) {
+        for(Map.Entry<Unit, List<Value>> unitToValues : decisionsToLocals.entrySet()) {
             for(Value value : unitToValues.getValue()) {
                 StaticInvokeExpr invExpr = Jimple.v().newStaticInvokeExpr(sootMethod.makeRef(), value);
                 Stmt stmt = Jimple.v().newInvokeStmt(invExpr);
@@ -113,6 +123,7 @@ public class ControlFlowSink extends BodyTransformer {
                 stmt.addTag(bytecodeOffsetTag);
 
                 units.insertBefore(stmt, unitToValues.getKey());
+
 //                units.insertAfter(stmt, unitToValues.getKey());
 
 //                NopStmt nop = Jimple.v().newNopStmt();
