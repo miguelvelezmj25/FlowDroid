@@ -1026,6 +1026,10 @@ public class InfoflowConfiguration {
 		this.stopAfterFirstKFlows = stopAfterFirstFlow ? 1 : 0;
 	}
 
+	public void setSolverConfiguration(SolverConfiguration solverConfiguration) {
+		this.solverConfiguration = solverConfiguration;
+	}
+
 	/**
 	 * Gets whether the information flow analysis shall stop after the first
 	 * flow has been found
