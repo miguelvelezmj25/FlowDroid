@@ -68,7 +68,7 @@ public class InfoflowCFG implements IInfoflowCFG {
 					SootMethod method = getMethodOf(unit);
 					DirectedGraph<Unit> graph = delegate.getOrCreateUnitGraph(method);
 
-					System.out.println(graph);
+//					System.out.println(graph);
 
 					MHGPostDominatorsFinder<Unit> postdominatorFinder = new MHGPostDominatorsFinder<Unit>(graph);
 					Unit postdom = postdominatorFinder.getImmediateDominator(unit);
