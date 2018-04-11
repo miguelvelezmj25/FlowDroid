@@ -206,7 +206,7 @@ public class ContextSensitivePathBuilder extends ConcurrentAbstractionPathBuilde
 
 	@Override
 	public void setPropagationResults(Set<AbstractionAtSink> res) {
-		throw new UnsupportedOperationException();
+
 	}
 
 	@Override
