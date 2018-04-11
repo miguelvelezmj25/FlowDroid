@@ -20,7 +20,7 @@ import soot.jimple.infoflow.solver.executors.InterruptableExecutor;
  * Class for reconstructing abstraction paths from sinks to source. This builder
  * is context-sensitive which makes it more precise than the
  * {@link ContextInsensitivePathBuilder}, but also a bit slower.
- * 
+ *
  * @author Steven Arzt
  */
 public class ContextSensitivePathBuilder extends ConcurrentAbstractionPathBuilder {
@@ -29,7 +29,7 @@ public class ContextSensitivePathBuilder extends ConcurrentAbstractionPathBuilde
 
 	/**
 	 * Creates a new instance of the {@link ContextSensitivePathBuilder} class
-	 * 
+	 *
 	 * @param manager
 	 *            The data flow manager that gives access to the icfg and other
 	 *            objects
@@ -42,7 +42,7 @@ public class ContextSensitivePathBuilder extends ConcurrentAbstractionPathBuilde
 
 	/**
 	 * Task for tracking back the path from sink to source.
-	 * 
+	 *
 	 * @author Steven Arzt
 	 */
 	protected class SourceFindingTask implements Runnable {
@@ -146,7 +146,7 @@ public class ContextSensitivePathBuilder extends ConcurrentAbstractionPathBuilde
 	/**
 	 * Checks whether the given abstraction is a source. If so, a result entry is
 	 * created.
-	 * 
+	 *
 	 * @param abs
 	 *            The abstraction to check
 	 * @param scap
@@ -197,6 +197,16 @@ public class ContextSensitivePathBuilder extends ConcurrentAbstractionPathBuilde
 			}
 		if (!incrementalAbs.isEmpty())
 			this.computeTaintPaths(incrementalAbs);
+	}
+
+	@Override
+	public IAbstractionPathBuilder getInnerBuilder() {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void setPropagationResults(Set<AbstractionAtSink> res) {
+		throw new UnsupportedOperationException();
 	}
 
 	@Override

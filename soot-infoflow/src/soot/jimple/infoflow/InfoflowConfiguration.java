@@ -187,7 +187,9 @@ public class InfoflowConfiguration {
 		 * An empty implementation that not reconstruct any paths and always
 		 * returns an empty set. For internal use only.
 		 */
-		None
+		None,
+
+		TaintlysisContextSensitive
 	}
 
 	/**

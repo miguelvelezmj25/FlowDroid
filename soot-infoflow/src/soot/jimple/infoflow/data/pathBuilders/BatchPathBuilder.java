@@ -80,6 +80,16 @@ public class BatchPathBuilder extends AbstractAbstractionPathBuilder {
 	}
 
 	@Override
+	public IAbstractionPathBuilder getInnerBuilder() {
+		return this.innerBuilder;
+	}
+
+	@Override
+	public void setPropagationResults(Set<AbstractionAtSink> res) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
 	public void forceTerminate(ISolverTerminationReason reason) {
 		innerBuilder.forceTerminate(reason);
 	}

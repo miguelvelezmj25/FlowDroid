@@ -15,7 +15,7 @@ import soot.jimple.infoflow.results.ResultSourceInfo;
  * @author Steven Arzt
  */
 public interface IAbstractionPathBuilder extends IMemoryBoundedSolver {
-	
+
 	/**
 	 * Callback interface that is triggered whenever a path builder has
 	 * computed a result value
@@ -57,5 +57,8 @@ public interface IAbstractionPathBuilder extends IMemoryBoundedSolver {
 	 * finished when incremental path building has been used in between.
 	 */
 	public void runIncrementalPathCompuation();
-	
+
+	public IAbstractionPathBuilder getInnerBuilder();
+
+	public void setPropagationResults(Set<AbstractionAtSink> res);
 }

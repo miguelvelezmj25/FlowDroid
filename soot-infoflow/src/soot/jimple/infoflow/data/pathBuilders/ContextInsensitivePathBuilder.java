@@ -172,4 +172,14 @@ public class ContextInsensitivePathBuilder extends ConcurrentAbstractionPathBuil
 			this.computeTaintPaths(incrementalAbs);
 	}
 
+	@Override
+	public IAbstractionPathBuilder getInnerBuilder() {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void setPropagationResults(Set<AbstractionAtSink> res) {
+		throw new UnsupportedOperationException();
+	}
+
 }

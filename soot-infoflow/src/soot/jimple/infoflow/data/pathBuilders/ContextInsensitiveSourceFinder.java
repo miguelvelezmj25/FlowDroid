@@ -118,6 +118,16 @@ public class ContextInsensitiveSourceFinder extends ConcurrentAbstractionPathBui
 	}
 
 	@Override
+	public IAbstractionPathBuilder getInnerBuilder() {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void setPropagationResults(Set<AbstractionAtSink> res) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
 	public void computeTaintPaths(final Set<AbstractionAtSink> res) {
 		if (numTasks < 0)
 			numTasks = res.size();

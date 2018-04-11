@@ -32,6 +32,16 @@ public class EmptyPathBuilder implements IAbstractionPathBuilder {
 	}
 
 	@Override
+	public IAbstractionPathBuilder getInnerBuilder() {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void setPropagationResults(Set<AbstractionAtSink> res) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
 	public boolean isTerminated() {
 		return false;
 	}

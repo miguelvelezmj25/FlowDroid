@@ -184,6 +184,16 @@ public class RecursivePathBuilder extends AbstractAbstractionPathBuilder {
 	}
 
 	@Override
+	public IAbstractionPathBuilder getInnerBuilder() {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void setPropagationResults(Set<AbstractionAtSink> res) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
 	public void forceTerminate(ISolverTerminationReason reason) {
 		// This path builder cannot be terminated
 	}
