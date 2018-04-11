@@ -68,13 +68,9 @@ public class ControlFlowSink extends BodyTransformer {
                 SwitchStmt switchStmt = (SwitchStmt) unit;
                 Value cond = switchStmt.getKey();
 
-                throw new UnsupportedOperationException("Check if we need to check if the condition is a local");
-//                if(!decisionsToLocals.containsKey(unit)) {
-//                    List<Value> values = new ArrayList<>();
-//                    decisionsToLocals.put(unit, values);
-//                }
-//
-//                decisionsToLocals.get(unit).add(cond);
+                if(locals.contains(cond)) {
+                    this.addLocalToDecision(decisionsToLocals, switchStmt, cond);
+                }
             }
         }
 
