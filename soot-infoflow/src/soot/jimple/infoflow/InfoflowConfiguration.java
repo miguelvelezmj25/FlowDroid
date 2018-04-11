@@ -1030,6 +1030,10 @@ public class InfoflowConfiguration {
 		this.solverConfiguration = solverConfiguration;
 	}
 
+	public void setPathConfiguration(PathConfiguration pathConfiguration) {
+		this.pathConfiguration = pathConfiguration;
+	}
+
 	/**
 	 * Gets whether the information flow analysis shall stop after the first
 	 * flow has been found
