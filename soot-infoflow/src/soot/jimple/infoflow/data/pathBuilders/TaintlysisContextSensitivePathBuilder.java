@@ -89,6 +89,10 @@ public class TaintlysisContextSensitivePathBuilder extends ContextSensitivePathB
     private ResultSourceInfo getSourceInfo() {
         Set<ResultSourceInfo> values = this.results.getResults().values();
 
+        if(values.size() == 0) {
+            return null;
+        }
+
         if(values.size() > 1) {
             throw new RuntimeException("We do not current support multiple sources at the same time");
         }
@@ -98,6 +102,11 @@ public class TaintlysisContextSensitivePathBuilder extends ContextSensitivePathB
 
     private void addMissingSinks(Set<Stmt> propagationReachedSinks) {
         ResultSourceInfo sourceInfo = this.getSourceInfo();
+
+        if(sourceInfo == null) {
+            return;
+        }
+
         Set<ResultSinkInfo> sinkInfos = this.getResultSinkInfo(propagationReachedSinks);
 
         for(ResultSinkInfo sinkInfo : sinkInfos) {
