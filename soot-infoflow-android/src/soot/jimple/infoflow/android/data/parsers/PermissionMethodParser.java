@@ -138,7 +138,7 @@ public class PermissionMethodParser implements ISourceSinkDefinitionProvider {
 				if (mNoRet.find()) {
 					createMethod(mNoRet);
 				} else
-					logger.warn("Line does not match: %s", line);
+					logger.warn(String.format("Line does not match: %s", line));
 			}
 		}
 
@@ -233,6 +233,8 @@ public class PermissionMethodParser implements ISourceSinkDefinitionProvider {
 						singleMethod.setSourceSinkType(SourceSinkType.Sink);
 					else if (target.equals("_NONE_"))
 						singleMethod.setSourceSinkType(SourceSinkType.Neither);
+					else if (target.equals("_BOTH_"))
+						singleMethod.setSourceSinkType(SourceSinkType.Both);
 					else
 						throw new RuntimeException("error in target definition: " + target);
 				}

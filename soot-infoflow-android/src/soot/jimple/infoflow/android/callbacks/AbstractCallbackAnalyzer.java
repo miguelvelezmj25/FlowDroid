@@ -17,9 +17,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -28,7 +30,9 @@ import org.slf4j.LoggerFactory;
 
 import soot.AnySubType;
 import soot.Body;
+import soot.FastHierarchy;
 import soot.Local;
+import soot.PointsToSet;
 import soot.RefType;
 import soot.Scene;
 import soot.SootClass;
@@ -45,8 +49,9 @@ import soot.jimple.Stmt;
 import soot.jimple.infoflow.android.InfoflowAndroidConfiguration;
 import soot.jimple.infoflow.android.callbacks.CallbackDefinition.CallbackType;
 import soot.jimple.infoflow.android.callbacks.filters.ICallbackFilter;
+import soot.jimple.infoflow.android.entryPointCreators.AndroidEntryPointConstants;
 import soot.jimple.infoflow.android.source.parsers.xml.ResourceUtils;
-import soot.jimple.infoflow.entryPointCreators.AndroidEntryPointConstants;
+import soot.jimple.infoflow.entryPointCreators.SimulatedCodeElementTag;
 import soot.jimple.infoflow.util.SootMethodRepresentationParser;
 import soot.jimple.infoflow.util.SystemClassHandler;
 import soot.jimple.infoflow.values.IValueProvider;
@@ -64,7 +69,16 @@ import soot.util.MultiMap;
  */
 public abstract class AbstractCallbackAnalyzer {
 
+	private static final String SIG_CAR_CREATE = "<android.car.Car: android.car.Car createCar(android.content.Context,android.content.ServiceConnection)>";
+
 	protected final Logger logger = LoggerFactory.getLogger(getClass());
+
+	protected final SootClass scContext = Scene.v().getSootClassUnsafe("android.content.Context");
+
+	protected final SootClass scBroadcastReceiver = Scene.v()
+			.getSootClassUnsafe(AndroidEntryPointConstants.BROADCASTRECEIVERCLASS);
+	protected final SootClass scServiceConnection = Scene.v()
+			.getSootClassUnsafe(AndroidEntryPointConstants.SERVICECONNECTIONINTERFACE);
 
 	protected final SootClass scFragmentTransaction = Scene.v().getSootClassUnsafe("android.app.FragmentTransaction");
 	protected final SootClass scFragment = Scene.v().getSootClassUnsafe(AndroidEntryPointConstants.FRAGMENTCLASS);
@@ -83,7 +97,7 @@ public abstract class AbstractCallbackAnalyzer {
 	protected final MultiMap<SootClass, SootClass> fragmentClasses = new HashMultiMap<>();
 	protected final Map<SootClass, Integer> fragmentIDs = new HashMap<>();
 
-	protected final Set<ICallbackFilter> callbackFilters = new HashSet<ICallbackFilter>();
+	protected final List<ICallbackFilter> callbackFilters = new ArrayList<>();
 	protected final Set<SootClass> excludedEntryPoints = new HashSet<>();
 
 	protected IValueProvider valueProvider = new SimpleConstantValueProvider();
@@ -208,11 +222,9 @@ public abstract class AbstractCallbackAnalyzer {
 						if (!SystemClassHandler.isClassInSystemPackage(iinv.getMethod().getDeclaringClass().getName()))
 							continue;
 
-						// We have a formal parameter type that corresponds to
-						// one of the Android
-						// callback interfaces. Look for definitions of the
-						// parameter to estimate
-						// the actual type.
+						// We have a formal parameter type that corresponds to one of the Android
+						// callback interfaces. Look for definitions of the parameter to estimate the
+						// actual type.
 						if (arg instanceof Local) {
 							Set<Type> possibleTypes = Scene.v().getPointsToAnalysis().reachingObjects((Local) arg)
 									.possibleTypes();
@@ -311,13 +323,61 @@ public abstract class AbstractCallbackAnalyzer {
 		if (!method.isConcrete() || !method.hasActiveBody())
 			return;
 
+		final FastHierarchy fastHierarchy = Scene.v().getFastHierarchy();
+		final RefType contextType = scContext.getType();
 		for (Unit u : method.getActiveBody().getUnits()) {
 			Stmt stmt = (Stmt) u;
 			if (stmt.containsInvokeExpr()) {
-				if (stmt.getInvokeExpr().getMethod().getName().equals("registerReceiver")
-						&& stmt.getInvokeExpr().getArgCount() > 0
-						&& isInheritedMethod(stmt, "android.content.ContextWrapper", "android.content.Context")) {
-					Value br = stmt.getInvokeExpr().getArg(0);
+				final InvokeExpr iexpr = stmt.getInvokeExpr();
+				final SootMethodRef methodRef = iexpr.getMethodRef();
+				if (methodRef.name().equals("registerReceiver") && iexpr.getArgCount() > 0
+						&& fastHierarchy.canStoreType(methodRef.declaringClass().getType(), contextType)) {
+					Value br = iexpr.getArg(0);
+					if (br.getType() instanceof RefType) {
+						RefType rt = (RefType) br.getType();
+						if (!SystemClassHandler.isClassInSystemPackage(rt.getSootClass().getName()))
+							dynamicManifestComponents.add(rt.getSootClass());
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	 * Checks whether the given method dynamically registers a new service
+	 * connection
+	 * 
+	 * @param method
+	 *            The method to check
+	 */
+	protected void analyzeMethodForServiceConnection(SootMethod method) {
+		// Do not analyze system classes
+		if (SystemClassHandler.isClassInSystemPackage(method.getDeclaringClass().getName()))
+			return;
+		if (!method.isConcrete() || !method.hasActiveBody())
+			return;
+
+		for (Unit u : method.getActiveBody().getUnits()) {
+			Stmt stmt = (Stmt) u;
+			if (stmt.containsInvokeExpr()) {
+				final InvokeExpr iexpr = stmt.getInvokeExpr();
+				final SootMethodRef methodRef = iexpr.getMethodRef();
+				if (methodRef.getSignature().equals(SIG_CAR_CREATE)) {
+					Value br = iexpr.getArg(1);
+
+					// We need all possible types for the parameter
+					if (br instanceof Local && Scene.v().hasPointsToAnalysis()) {
+						PointsToSet pts = Scene.v().getPointsToAnalysis().reachingObjects((Local) br);
+						for (Type tp : pts.possibleTypes()) {
+							if (tp instanceof RefType) {
+								RefType rt = (RefType) tp;
+								if (!SystemClassHandler.isClassInSystemPackage(rt.getSootClass().getName()))
+									dynamicManifestComponents.add(rt.getSootClass());
+							}
+						}
+					}
+
+					// Just to be sure, also add the declared type
 					if (br.getType() instanceof RefType) {
 						RefType rt = (RefType) br.getType();
 						if (!SystemClassHandler.isClassInSystemPackage(rt.getSootClass().getName()))
@@ -343,8 +403,8 @@ public abstract class AbstractCallbackAnalyzer {
 		if (!method.isConcrete() || !method.hasActiveBody())
 			return;
 
-		// first check if there is a Fragment manager, a fragment transaction and a call
-		// to the add method which adds the fragment to the transaction
+		// first check if there is a Fragment manager, a fragment transaction
+		// and a call to the add method which adds the fragment to the transaction
 		boolean isFragmentManager = false;
 		boolean isFragmentTransaction = false;
 		boolean isAddTransaction = false;
@@ -420,7 +480,7 @@ public abstract class AbstractCallbackAnalyzer {
 	 * @return True if the given call can end up in a method inherited from one of
 	 *         the given classes, otherwise falae
 	 */
-	private boolean isInheritedMethod(Stmt stmt, String... classNames) {
+	protected boolean isInheritedMethod(Stmt stmt, String... classNames) {
 		if (!stmt.containsInvokeExpr())
 			return false;
 
@@ -528,19 +588,23 @@ public abstract class AbstractCallbackAnalyzer {
 			if (SystemClassHandler.isClassInSystemPackage(parentClass.getName()))
 				continue;
 			for (SootMethod method : parentClass.getMethods()) {
-				// Check whether this is a real callback method
-				SootMethod parentMethod = systemMethods.get(method.getSubSignature());
-				if (parentMethod != null)
-					checkAndAddMethod(method, parentMethod, sootClass, CallbackType.Default);
+				if (!method.hasTag(SimulatedCodeElementTag.TAG_NAME)) {
+					// Check whether this is a real callback method
+					SootMethod parentMethod = systemMethods.get(method.getSubSignature());
+					if (parentMethod != null)
+						checkAndAddMethod(method, parentMethod, sootClass, CallbackType.Default);
+				}
 			}
 		}
 	}
 
 	private SootMethod getMethodFromHierarchyEx(SootClass c, String methodSignature) {
-		if (c.declaresMethod(methodSignature))
-			return c.getMethod(methodSignature);
-		if (c.hasSuperclass())
-			return getMethodFromHierarchyEx(c.getSuperclass(), methodSignature);
+		SootMethod m = c.getMethodUnsafe(methodSignature);
+		if (m != null)
+			return m;
+		SootClass superClass = c.getSuperclassUnsafe();
+		if (superClass != null)
+			return getMethodFromHierarchyEx(superClass, methodSignature);
 		return null;
 	}
 
@@ -564,8 +628,9 @@ public abstract class AbstractCallbackAnalyzer {
 
 		// If we are a class, one of our superclasses might implement an Android
 		// interface
-		if (sootClass.hasSuperclass())
-			analyzeClassInterfaceCallbacks(baseClass, sootClass.getSuperclass(), lifecycleElement);
+		SootClass superClass = sootClass.getSuperclassUnsafe();
+		if (superClass != null)
+			analyzeClassInterfaceCallbacks(baseClass, superClass, lifecycleElement);
 
 		// Do we implement one of the well-known interfaces?
 		for (SootClass i : collectAllInterfaces(sootClass)) {

@@ -2,14 +2,15 @@ package soot.jimple.infoflow.data;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 
 import heros.solver.Pair;
 import soot.jimple.Stmt;
 import soot.jimple.infoflow.InfoflowConfiguration;
 import soot.jimple.infoflow.InfoflowConfiguration.PathConfiguration;
 import soot.jimple.infoflow.sourcesSinks.definitions.SourceSinkDefinition;
+import soot.jimple.infoflow.util.extensiblelist.ExtensibleList;
 
 /**
  * Extension of {@link SourceContext} that also allows a paths from the source
@@ -18,8 +19,8 @@ import soot.jimple.infoflow.sourcesSinks.definitions.SourceSinkDefinition;
  * @author Steven Arzt
  */
 public class SourceContextAndPath extends SourceContext implements Cloneable {
-	protected List<Abstraction> path = null;
-	protected List<Stmt> callStack = null;
+	protected ExtensibleList<Abstraction> path = null;
+	protected ExtensibleList<Stmt> callStack = null;
 	protected int neighborCounter = 0;
 	private int hashCode = 0;
 
@@ -35,8 +36,9 @@ public class SourceContextAndPath extends SourceContext implements Cloneable {
 		if (path == null)
 			return Collections.<Stmt>emptyList();
 		List<Stmt> stmtPath = new ArrayList<>(this.path.size());
-		for (ListIterator<Abstraction> absIt = this.path.listIterator(path.size()); absIt.hasPrevious();) {
-			Abstraction abs = absIt.previous();
+		Iterator<Abstraction> it = path.reverseIterator();
+		while (it.hasNext()) {
+			Abstraction abs = it.next();
 			if (abs.getCurrentStmt() != null) {
 				stmtPath.add(abs.getCurrentStmt());
 			}
@@ -49,9 +51,9 @@ public class SourceContextAndPath extends SourceContext implements Cloneable {
 			return null;
 
 		List<Abstraction> reversePath = new ArrayList<>(path.size());
-		ListIterator<Abstraction> it = path.listIterator(path.size());
-		while (it.hasPrevious()) {
-			reversePath.add(it.previous());
+		Iterator<Abstraction> it = path.reverseIterator();
+		while (it.hasNext()) {
+			reversePath.add(it.next());
 		}
 		return reversePath;
 	}
@@ -59,8 +61,7 @@ public class SourceContextAndPath extends SourceContext implements Cloneable {
 	/**
 	 * Extends the taint propagation path with the given abstraction
 	 * 
-	 * @param abs
-	 *            The abstraction to put on the taint propagation path
+	 * @param abs The abstraction to put on the taint propagation path
 	 * @return The new taint propagation path If this path would contain a loop,
 	 *         null is returned instead of the looping path.
 	 */
@@ -71,10 +72,8 @@ public class SourceContextAndPath extends SourceContext implements Cloneable {
 	/**
 	 * Extends the taint propagation path with the given abstraction
 	 * 
-	 * @param abs
-	 *            The abstraction to put on the taint propagation path
-	 * @param pathConfig
-	 *            The configuration for constructing taint propagation paths
+	 * @param abs        The abstraction to put on the taint propagation path
+	 * @param pathConfig The configuration for constructing taint propagation paths
 	 * @return The new taint propagation path. If this path would contain a loop,
 	 *         null is returned instead of the looping path.
 	 */
@@ -96,7 +95,9 @@ public class SourceContextAndPath extends SourceContext implements Cloneable {
 		if (trackPath && abs.getCurrentStmt() != null) {
 			// Do not add the very same abstraction over and over again.
 			if (this.path != null) {
-				for (Abstraction a : path) {
+				Iterator<Abstraction> it = path.reverseIterator();
+				while (it.hasNext()) {
+					Abstraction a = it.next();
 					if (a == abs)
 						return null;
 
@@ -108,16 +109,14 @@ public class SourceContextAndPath extends SourceContext implements Cloneable {
 					// If this is exactly the same abstraction as one we have
 					// seen before, we skip it. Otherwise, we would run through
 					// loops infinitely.
-					if (a.equals(abs)
-							&& a.getCurrentStmt() == abs.getCurrentStmt()
-							&& a.getCorrespondingCallSite() == abs.getCorrespondingCallSite())
+					if (a.getCurrentStmt() == abs.getCurrentStmt()
+							&& a.getCorrespondingCallSite() == abs.getCorrespondingCallSite() && a.equals(abs))
 						return null;
 				}
 
 				// We cannot leave the same method at two different sites
-				Abstraction topAbs = path.get(path.size() - 1);
-				if (topAbs.equals(abs)
-						&& topAbs.getCorrespondingCallSite() != null
+				Abstraction topAbs = path.getLast();
+				if (topAbs.equals(abs) && topAbs.getCorrespondingCallSite() != null
 						&& topAbs.getCorrespondingCallSite() == abs.getCorrespondingCallSite()
 						&& topAbs.getCurrentStmt() != abs.getCurrentStmt())
 					return null;
@@ -126,10 +125,10 @@ public class SourceContextAndPath extends SourceContext implements Cloneable {
 			scap = clone();
 			// Extend the propagation path
 			if (scap.path == null)
-				scap.path = new ArrayList<Abstraction>();
+				scap.path = new ExtensibleList<Abstraction>();
 			scap.path.add(abs);
-			if (pathConfig != null
-					&& pathConfig.getMaxPathLength() > 0
+
+			if (pathConfig != null && pathConfig.getMaxPathLength() > 0
 					&& scap.path.size() > pathConfig.getMaxPathLength())
 				return null;
 		}
@@ -139,9 +138,8 @@ public class SourceContextAndPath extends SourceContext implements Cloneable {
 			if (scap == null)
 				scap = this.clone();
 			if (scap.callStack == null)
-				scap.callStack = new ArrayList<Stmt>();
-			else if (pathConfig != null
-					&& pathConfig.getMaxCallStackSize() > 0
+				scap.callStack = new ExtensibleList<Stmt>();
+			else if (pathConfig != null && pathConfig.getMaxCallStackSize() > 0
 					&& scap.callStack.size() >= pathConfig.getMaxCallStackSize())
 				return null;
 			scap.callStack.add(abs.getCorrespondingCallSite());
@@ -163,7 +161,17 @@ public class SourceContextAndPath extends SourceContext implements Cloneable {
 			return null;
 
 		SourceContextAndPath scap = clone();
-		return new Pair<>(scap, scap.callStack.remove(scap.callStack.size() - 1));
+		Stmt lastStmt = null;
+		Object c = scap.callStack.removeLast();
+		if (c instanceof ExtensibleList) {
+			lastStmt = scap.callStack.getLast();
+			scap.callStack = (ExtensibleList<Stmt>) c;
+		} else
+			lastStmt = (Stmt) c;
+
+		if (scap.callStack.isEmpty())
+			scap.callStack = null;
+		return new Pair<>(scap, lastStmt);
 	}
 
 	/**
@@ -195,8 +203,7 @@ public class SourceContextAndPath extends SourceContext implements Cloneable {
 		if (this.hashCode != 0 && scap.hashCode != 0 && this.hashCode != scap.hashCode)
 			return false;
 
-		boolean mergeDifferentPaths = !InfoflowConfiguration.getPathAgnosticResults()
-				&& path != null
+		boolean mergeDifferentPaths = !InfoflowConfiguration.getPathAgnosticResults() && path != null
 				&& scap.path != null;
 		if (mergeDifferentPaths) {
 			if (path.size() != scap.path.size()) {
@@ -205,11 +212,16 @@ public class SourceContextAndPath extends SourceContext implements Cloneable {
 			}
 		}
 
-		if (this.callStack == null) {
-			if (scap.callStack != null)
+		if (this.callStack == null || this.callStack.isEmpty()) {
+			if (scap.callStack != null && !scap.callStack.isEmpty())
 				return false;
-		} else if (callStack.size() != scap.callStack.size() || !this.callStack.equals(scap.callStack))
-			return false;
+		} else {
+			if (scap.callStack == null || scap.callStack.isEmpty())
+				return false;
+
+			if (callStack.size() != scap.callStack.size() || !this.callStack.equals(scap.callStack))
+				return false;
+		}
 
 		if (mergeDifferentPaths) {
 			if (!this.path.equals(scap.path))
@@ -237,9 +249,9 @@ public class SourceContextAndPath extends SourceContext implements Cloneable {
 	public SourceContextAndPath clone() {
 		final SourceContextAndPath scap = new SourceContextAndPath(definition, accessPath, stmt, userData);
 		if (path != null)
-			scap.path = new ArrayList<Abstraction>(this.path);
+			scap.path = new ExtensibleList<Abstraction>(this.path);
 		if (callStack != null)
-			scap.callStack = new ArrayList<Stmt>(callStack);
+			scap.callStack = new ExtensibleList<Stmt>(callStack);
 		return scap;
 	}
 
